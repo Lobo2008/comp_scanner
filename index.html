@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload and Analyze</title>
+</head>
+<body>
+    <h1>Upload and Analyze Food Image</h1>
+
+    <!-- 文件输入框 -->
+    <input type="file" id="imageInput" />
+    <button id="uploadButton">Upload & Analyze</button>
+
+    <!-- 显示分析结果 -->
+    <div id="result"></div>
+
+    <!-- JavaScript 代码 -->
+    <script>
+        // 获取页面元素
+        const uploadButton = document.getElementById('uploadButton');
+        const resultDiv = document.getElementById('result');
+        const imageInput = document.getElementById('imageInput');
+
+        // 点击上传按钮时触发
+        uploadButton.addEventListener('click', async () => {
+            // 获取用户上传的文件
+            const file = imageInput.files[0];
+            if (!file) {
+                resultDiv.innerText = 'Please select an image to upload.';
+                return;
+            }
+
+            // 将文件转为 base64 格式
+            const reader = new FileReader();
+            reader.onloadend = async function () {
+                const base64Image = reader.result.split(',')[1];  // 获取 base64 部分
+
+                // 发送 POST 请求到后端 API
+                const response = await fetch('http://127.0.0.1:9999/api/upload/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image_base64: base64Image }),
+                });
+
+                if (!response.ok) {
+                    resultDiv.innerText = 'Failed to fetch data from the server.';
+                    return;
+                }
+
+                // 处理流式响应
+                const readerResponse = response.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+                let resultText = '';
+
+                // 逐步读取流数据并显示
+                while (!done) {
+                    const { value, done: doneReading } = await readerResponse.read();
+                    done = doneReading;
+                    resultText += decoder.decode(value, { stream: true });
+                    resultDiv.innerText = resultText;  // 实时更新显示结果
+                }
+
+                // 完成时更新最终的结果
+                resultDiv.innerText = resultText;
+            };
+            reader.readAsDataURL(file);  // 将文件读取为 base64
+        });
+    </script>
+</body>
+</html>
+
